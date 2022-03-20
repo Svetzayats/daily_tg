@@ -29,15 +29,19 @@ const commandsForTeam = `
 const saveYesterdayResults = async (taskIndexies, msg) => {
     const path = `${msg.chat.title}/${msg.from.username}/messages`;
     const {key} = await getPreviousRec(db, path);
-    const res = await updateRecByKey(db, path, key, {done: taskIndexies});
+    if (key) {
+        const res = await updateRecByKey(db, path, key, {done: taskIndexies});
+    } else {
+        bot.sendMessage(msg.chat.id, 'Не найдено запланированных задач за прошлые дни 🤷‍♀️');
+    }
     // TODO: добавить обработку ошибки     
 }
 
 // показываем результаты вчера
 const showYesterdayResults = async (msg) => {
     const {data} = await getPreviousRec(db, `${msg.chat.title}/${msg.from.username}/messages`);
-    let message = 'Результаты за вчера \n\n';
-    if (data.done) {
+    if (data && data.done) {
+        let message = 'Результаты за вчера \n\n';
         data.tasks.forEach((task, index) => {
             message += `${data.done.includes(index) ? '✅' : '❌'} ${task}\n`;
         });
@@ -83,12 +87,16 @@ bot.on('/start_daily', (msg) => {
 // По команде /yesterday показываем список задач, которые планировались в предыдущий день
 bot.on('/yesterday', async (msg) => {
     const {data} = await getPreviousRec(db, `${msg.chat.title}/${msg.from.username}/messages`);
-    let message = 'Вчера ты планировал: \n';
-    data.tasks.forEach((task, index) => {
-        message += `⬜ ${index} ${task}\n`;
-    });
-    message += '\n Напиши ответным сообщением номера задач, которыми ты занимался  в формате: Результаты 0 1';
-    bot.sendMessage(msg.chat.id, message);
+    if (data && data.tasks) {
+        let message = 'Вчера ты планировал: \n';
+        data.tasks.forEach((task, index) => {
+            message += `⬜ ${index} ${task}\n`;
+        });
+        message += '\n Напиши ответным сообщением номера задач, которыми ты занимался  в формате: Результаты 0 1';
+        bot.sendMessage(msg.chat.id, message);
+    } else {
+        bot.sendMessage(msg.chat.id, 'Не найдено запланированных задач за прошлые дни 🤷‍♀️');
+    }
 });
 
 
