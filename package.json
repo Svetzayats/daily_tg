@@ -1,0 +1,33 @@
+{
+  "dependencies": {
+    "dotenv": "^16.0.0",
+    "firebase": "^9.6.9",
+    "firebase-tools": "^10.4.0",
+    "telebot": "^1.4.1"
+  },
+  "name": "daily_tg",
+  "description": "Телеграм-бот для проведения текстовых дейли в команде разработки",
+  "version": "1.0.0",
+  "main": "bot.js",
+  "scripts": {
+    "start": "node bot.js"
+  },
+  "engines": {
+    "node": "17.7.2"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Svetzayats/daily_tg.git"
+  },
+  "keywords": [
+    "bot",
+    "telegram",
+    "daily"
+  ],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Svetzayats/daily_tg/issues"
+  },
+  "homepage": "https://github.com/Svetzayats/daily_tg#readme"
+}
