@@ -3,7 +3,7 @@ const { Timestamp, doc, setDoc } = require("firebase/firestore");
 // Создаем запись за сегодня и добавляем туда задачи 
 const setTodayRec = async (db, path, tasks) => {
     try {
-        const key = new Date().toLocaleDateString();
+        const key = new Date().toLocaleDateString('ru');
         const date = Timestamp.fromDate(new Date());
         const newDoc = doc(db, path, key);
 
