@@ -3,7 +3,7 @@ const { getFirestore } = require('firebase/firestore');
 const TeleBot = require('telebot');
 require('dotenv').config();
 
-const { getPreviousRec } = require('./queryDatabase');
+const { getPreviousRec, getTodayRec } = require('./queryDatabase');
 const { setTodayRec, updateRecByKey } = require('./modifyDatabase');
 
 const bot = new TeleBot(process.env.BOT_ID);
@@ -47,12 +47,18 @@ const showYesterdayResults = async (msg) => {
         `${process.env.PIVO_DAILY_CHAT_NAME}/${msg.from.username}/messages`
     );
     if (data && data.done) {
-        let message = `${msg.from.first_name} ${msg.from.last_name} - результаты за вчера \n\n`;
+        let message = `${msg.from.first_name ? msg.from.first_name : ''} ${
+            msg.from.last_name ? msg.from.last_name : ''
+        } - результаты за вчера \n\n`;
         data.tasks.forEach((task, index) => {
             message += `${data.done.includes(index) ? '✅' : '❌'} ${task}\n`;
         });
-
         bot.sendMessage(process.env.PIVO_DAILY_CHAT_ID, message);
+    } else {
+        bot.sendMessage(
+            msg.from.id,
+            'Не смогли получить индексы выполненных задач. Надо написать разработчику ;)'
+        );
     }
 };
 
@@ -64,7 +70,7 @@ const addTodayTasks = async (tasksMsg, chat, user) => {
 };
 
 const showPlannedTasks = async (msg) => {
-    const { data } = await getPreviousRec(
+    const { data } = await getTodayRec(
         db,
         `${process.env.PIVO_DAILY_CHAT_NAME}/${msg.from.username}/messages`
     );
@@ -90,6 +96,7 @@ bot.on('text', async (msg) => {
                 answers.split(' ').map((res) => Number(res)),
                 msg
             );
+            bot.sendMessage(msg.from.id, 'Результаты записали 🤘');
             showYesterdayResults(msg);
             return;
         }
@@ -101,12 +108,17 @@ bot.on('text', async (msg) => {
                 process.env.PIVO_DAILY_CHAT_NAME,
                 msg.from.username
             );
+            bot.sendMessage(msg.from.id, 'Принято-понято 🐗');
+
             showPlannedTasks(msg);
             // TODO: добавить обработку ошибок и вывод сообщения
             return;
         }
     } catch (error) {
-        console.log(error);
+        bot.sendMessage(
+            msg.from.id,
+            '⚠ Произошла ошибка! Перешлите это сообщение разработчику. ' + error
+        );
     }
 });
 
@@ -133,12 +145,12 @@ bot.on('/yesterday', async (msg) => {
         );
 
         if (data && data.tasks) {
-            let message = 'Вчера ты планировал: \n';
+            let message = 'На вчера было запланировано: \n';
             data.tasks.forEach((task, index) => {
                 message += `⬜ ${index} ${task}\n`;
             });
             message +=
-                '\n Напиши ответным сообщением номера задач, которыми ты занимался  в формате: Результаты 0 1';
+                '\n Напиши ответным сообщением номера задач, в формате: Результаты 0 1';
             bot.sendMessage(msg.from.id, message);
         } else {
             bot.sendMessage(
@@ -147,7 +159,10 @@ bot.on('/yesterday', async (msg) => {
             );
         }
     } catch (error) {
-        console.log(error);
+        bot.sendMessage(
+            msg.from.id,
+            '⚠ Произошла ошибка! Перешлите это сообщение разработчику. ' + error
+        );
     }
 });
 
