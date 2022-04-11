@@ -1,7 +1,7 @@
 const { Timestamp, doc, setDoc } = require('firebase/firestore');
 
-// Создаем запись за сегодня и добавляем туда задачи
-const setTodayRec = async (db, path, tasks) => {
+// Создаем/обновляем запись за сегодня и добавляем туда данные
+const setTodayRec = async (db, path, data) => {
     const key = new Date().toLocaleDateString('ru');
     const date = Timestamp.fromDate(new Date());
     const newDoc = doc(db, path, key);
@@ -10,7 +10,7 @@ const setTodayRec = async (db, path, tasks) => {
         newDoc,
         {
             date,
-            tasks
+            ...data
         },
         { merge: true }
     );

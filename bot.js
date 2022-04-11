@@ -6,6 +6,8 @@ require('dotenv').config();
 const { getPreviousRec, getTodayRec } = require('./queryDatabase');
 const { setTodayRec, updateRecByKey } = require('./modifyDatabase');
 
+const { getCommand, getUserMessage } = require('./helpers');
+
 const bot = new TeleBot(process.env.BOT_ID);
 
 const firebaseConfig = {
@@ -43,7 +45,14 @@ const saveYesterdayResults = async (taskIndexies, msg) => {
 // добавляем сегодняшнюю запись и кладем туда задачи
 const addTodayTasks = async (tasksMsg, chat, user) => {
     const tasks = tasksMsg.split(';').map((task) => task.trim());
-    const res = await setTodayRec(db, `${chat}/${user}/messages`, tasks);
+    console.log(`${chat}/${user}/messages`);
+    const res = await updateTodayRec(chat, user, { tasks });
+    return res;
+};
+
+// сохраняем данные в сегодняшнюю запись
+const updateTodayRec = async (chat, user, data) => {
+    const res = await setTodayRec(db, `${chat}/${user}/messages`, data);
     return res;
 };
 
@@ -61,9 +70,9 @@ const getYesterdayMsg = async (msg) => {
         `${process.env.PIVO_DAILY_CHAT_NAME}/${msg.from.username}/messages`
     );
     if (data && data.done) {
-        let message = `${getName(
+        let message = `<b>${getName(
             msg
-        )} - результаты за прошлый рабочий день \n\n`;
+        )} - результаты за прошлый рабочий день</b> \n\n`;
 
         data.tasks.forEach((task, index) => {
             message += `${data.done.includes(index) ? '✅' : '❌'} ${task}\n`;
@@ -74,34 +83,45 @@ const getYesterdayMsg = async (msg) => {
             msg.from.id,
             'Не смогли получить индексы выполненных задач. Надо написать разработчику ;)'
         );
-        return getName(msg);
+        return `<b>${getName(msg)}</b`;
     }
 };
 
-// получаем текст с планами на сегодня
+// получаем текст с планами на сегодня и комментарием
 const getTodayMsg = async (msg) => {
     const { data } = await getTodayRec(
         db,
         `${process.env.PIVO_DAILY_CHAT_NAME}/${msg.from.username}/messages`
     );
     if (data && data.tasks) {
-        let message = `План на ${new Date().toLocaleDateString('ru')} \n\n`;
+        const comment = data.comment
+            ? `<b>Комментарий</b>: ${data.comment}\n\n`
+            : '';
+        let message = `<b>План на ${new Date().toLocaleDateString(
+            'ru'
+        )} </b>\n`;
         data.tasks.forEach((task) => {
             message += `${'📝'} ${task}\n`;
         });
 
-        return message;
+        return comment + message;
     }
 };
 
 // показываем общее сообщение с результатами и планами
-const showResults = async (msg) => {
+const showResults = async (msg, isPreview) => {
     try {
         const yesterdayMsg = await getYesterdayMsg(msg);
         const todayMsg = await getTodayMsg(msg);
         const message = yesterdayMsg + '\n' + todayMsg;
 
-        bot.sendMessage(process.env.PIVO_DAILY_CHAT_ID, message);
+        bot.sendMessage(
+            isPreview ? msg.from.id : process.env.PIVO_DAILY_CHAT_ID,
+            message,
+            {
+                parseMode: 'HTML'
+            }
+        );
     } catch (error) {
         bot.sendMessage(
             msg.from.id,
@@ -112,34 +132,45 @@ const showResults = async (msg) => {
 
 bot.on('text', async (msg) => {
     try {
-        // получили сообщение с результатами участника за вчера
-        if (msg.text.toLowerCase().startsWith('результаты')) {
-            const answers = msg.text
-                .toLowerCase()
-                .replace('результаты', '')
-                .trim();
-
-            await saveYesterdayResults(
-                answers.split(' ').map((res) => Number(res.trim())),
-                msg
-            );
-            bot.sendMessage(msg.from.id, 'Результаты записали 🤘');
+        // вычленяем первое слово - считаем его командой
+        const command = getCommand(msg.text);
+        if (!command) {
             return;
         }
 
-        // получили сообщение с планами на сегодня
-        if (msg.text.toLowerCase().startsWith('сегодня')) {
-            await addTodayTasks(
-                msg.text.toLowerCase().replace('сегодня', ''),
-                process.env.PIVO_DAILY_CHAT_NAME,
-                msg.from.username
-            );
-            bot.sendMessage(msg.from.id, 'Принято-понято 🐗');
+        // пробуем извлечь пользовательское сообщение после команды
+        const userMessage = getUserMessage(msg.text);
 
-            // после того, как запланировали сегодня - показываем результаты и план
-            showResults(msg);
-            // TODO: добавить обработку ошибок и вывод сообщения
-            return;
+        switch (command) {
+            // получили сообщение с результатами участника за вчера
+            case 'результаты':
+                await saveYesterdayResults(
+                    userMessage.split(' ').map((res) => Number(res.trim())),
+                    msg
+                );
+                bot.sendMessage(msg.from.id, 'Результаты записали 🤘');
+                break;
+            case 'сегодня':
+                // получили сообщение с планами на сегодня
+                await addTodayTasks(
+                    userMessage,
+                    process.env.PIVO_DAILY_CHAT_NAME,
+                    msg.from.username
+                );
+                bot.sendMessage(msg.from.id, 'Принято-понято 🐗');
+                break;
+            case 'коммент':
+                await updateTodayRec(
+                    process.env.PIVO_DAILY_CHAT_NAME,
+                    msg.from.username,
+                    {
+                        comment: userMessage
+                    }
+                );
+                bot.sendMessage(msg.from.id, 'Комментарий получен');
+                break;
+            default:
+                return;
         }
     } catch (error) {
         bot.sendMessage(
@@ -158,12 +189,11 @@ bot.on('/start_daily', (msg) => {
         '2️⃣ Запустить команду /yesterday - выведет список задач за вчера с номерами\n' +
         '3️⃣ В ответе написать результаты и номера выполненных задач:\n результаты 0 1\n' +
         '4️⃣ Запланировать задачи на сегодня в формате\n сегодня тесты; ошибки\n\n' +
-        'Сообщения с итогами будут выведены в общем чате или вам придет сообщение о проблеме (а может и нет, тогда пишите мне ;))\n' +
-        commandsForTeam;
+        'Сообщения с итогами будут выведены в общем чате или вам придет сообщение о проблеме (а может и нет, тогда пишите мне ;))\n';
     return bot.sendMessage(msg.chat.id, message);
 });
 
-// По команде /yesterday показываем список задач, которые планировались в предыдущий день
+// по команде /yesterday показываем список задач, которые планировались в предыдущий день
 bot.on('/yesterday', async (msg) => {
     try {
         const { data } = await getPreviousRec(
@@ -193,12 +223,31 @@ bot.on('/yesterday', async (msg) => {
     }
 });
 
-// по команде /today напоминаем, в каком формате ждем задачи
-bot.on('/today', (msg) => {
+// по команде даем инструктируем, как оставить коммент
+bot.on('/comment', (msg) => {
+    bot.sendMessage(
+        msg.from.id,
+        'Если хочешь написать коммент ко вчера или сегодня, чтобы он вывелся в итоговом сообщении' +
+            '- начни сообщение со слова коммент. Пример:\n коммент вчера отвлекли ошибками и совещаниями дурацкими, всё пошло не по плану'
+    );
+});
+
+// по команде напоминаем, в каком формате ждем задачи
+bot.on('/today_hint', (msg) => {
     bot.sendMessage(
         msg.from.id,
         'Напиши, что планируешь сделать сегодня - одним сообщением, начинающимся с сегодня. Разделяй задачи через ;\n\nПример: сегодня тесты; ошибки'
     );
+});
+
+// по команде показываем пользователю, каким будет его результат
+bot.on('/today', (msg) => {
+    showResults(msg, true);
+});
+
+// по команде отправляем сообщение в общий чат
+bot.on('/sent', (msg) => {
+    showResults(msg, false);
 });
 
 bot.start();
