@@ -10,7 +10,8 @@
   "version": "1.0.0",
   "main": "bot.js",
   "scripts": {
-    "start": "node bot.js"
+    "start": "node bot.js",
+    "test": "npx jest"
   },
   "engines": {
     "node": "17.7.2"
@@ -29,5 +30,8 @@
   "bugs": {
     "url": "https://github.com/Svetzayats/daily_tg/issues"
   },
-  "homepage": "https://github.com/Svetzayats/daily_tg#readme"
+  "homepage": "https://github.com/Svetzayats/daily_tg#readme",
+  "devDependencies": {
+    "jest": "^27.5.1"
+  }
 }

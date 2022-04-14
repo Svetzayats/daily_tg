@@ -29,31 +29,43 @@ const commandsForTeam = `
 
 // добавляем во "вчерашнюю" запись информацию о сделанных задачах
 const saveYesterdayResults = async (taskIndexies, msg) => {
-    const path = `${process.env.PIVO_DAILY_CHAT_NAME}/${msg.from.username}/messages`;
-    const { key } = await getPreviousRec(db, path);
-    if (key) {
-        const res = await updateRecByKey(db, path, key, { done: taskIndexies });
-    } else {
-        bot.sendMessage(
-            msg.from.id,
-            'Не найдено запланированных задач за прошлые дни 🤷‍♀️'
-        );
+    try {
+        const path = `${process.env.PIVO_DAILY_CHAT_NAME}/${msg.from.username}/messages`;
+        const { key } = await getPreviousRec(db, path);
+        if (key) {
+            const res = await updateRecByKey(db, path, key, {
+                done: taskIndexies
+            });
+        } else {
+            bot.sendMessage(
+                msg.from.id,
+                'Не найдено запланированных задач за прошлые дни 🤷‍♀️'
+            );
+        }
+    } catch (error) {
+        console.log(error);
     }
-    // TODO: добавить обработку ошибки
 };
 
 // добавляем сегодняшнюю запись и кладем туда задачи
 const addTodayTasks = async (tasksMsg, chat, user) => {
-    const tasks = tasksMsg.split(';').map((task) => task.trim());
-    console.log(`${chat}/${user}/messages`);
-    const res = await updateTodayRec(chat, user, { tasks });
-    return res;
+    try {
+        const tasks = tasksMsg.split(';').map((task) => task.trim());
+        const res = await updateTodayRec(chat, user, { tasks });
+        return res;
+    } catch (error) {
+        console.log(error);
+    }
 };
 
 // сохраняем данные в сегодняшнюю запись
 const updateTodayRec = async (chat, user, data) => {
-    const res = await setTodayRec(db, `${chat}/${user}/messages`, data);
-    return res;
+    try {
+        const res = await setTodayRec(db, `${chat}/${user}/messages`, data);
+        return res;
+    } catch (error) {
+        console.log(error);
+    }
 };
 
 // формируем имя участника
@@ -65,46 +77,51 @@ const getName = (msg) => {
 
 // получаем текст с результатами за вчера
 const getYesterdayMsg = async (msg) => {
-    const { data } = await getPreviousRec(
-        db,
-        `${process.env.PIVO_DAILY_CHAT_NAME}/${msg.from.username}/messages`
-    );
-    if (data && data.done) {
-        let message = `<b>${getName(
-            msg
-        )} - результаты за прошлый рабочий день</b> \n\n`;
-
-        data.tasks.forEach((task, index) => {
-            message += `${data.done.includes(index) ? '✅' : '❌'} ${task}\n`;
-        });
-        return `${message}`;
-    } else {
-        bot.sendMessage(
-            msg.from.id,
-            'Не смогли получить индексы выполненных задач. Надо написать разработчику ;)'
+    try {
+        const { data } = await getPreviousRec(
+            db,
+            `${process.env.PIVO_DAILY_CHAT_NAME}/${msg.from.username}/messages`
         );
+        if (data && data.done && data.tasks) {
+            let message = `<b>${getName(
+                msg
+            )} - результаты за прошлый рабочий день</b> \n\n`;
+
+            data.tasks.forEach((task, index) => {
+                message += `${
+                    data.done.includes(index) ? '✅' : '❌'
+                } ${task}\n`;
+            });
+            return `${message}`;
+        }
         return `<b>${getName(msg)}</b`;
+    } catch (error) {
+        console.log(error);
     }
 };
 
 // получаем текст с планами на сегодня и комментарием
 const getTodayMsg = async (msg) => {
-    const { data } = await getTodayRec(
-        db,
-        `${process.env.PIVO_DAILY_CHAT_NAME}/${msg.from.username}/messages`
-    );
-    if (data && data.tasks) {
-        const comment = data.comment
-            ? `<b>Комментарий</b>: ${data.comment}\n\n`
-            : '';
-        let message = `<b>План на ${new Date().toLocaleDateString(
-            'ru'
-        )} </b>\n`;
-        data.tasks.forEach((task) => {
-            message += `${'📝'} ${task}\n`;
-        });
+    try {
+        const { data } = await getTodayRec(
+            db,
+            `${process.env.PIVO_DAILY_CHAT_NAME}/${msg.from.username}/messages`
+        );
+        if (data && data.tasks) {
+            const comment = data.comment
+                ? `<b>Комментарий</b>: ${data.comment}\n\n`
+                : '';
+            let message = `<b>План на ${new Date().toLocaleDateString(
+                'ru'
+            )} </b>\n`;
+            data.tasks.forEach((task) => {
+                message += `${'📝'} ${task}\n`;
+            });
 
-        return comment + message;
+            return comment + message;
+        }
+    } catch (error) {
+        console.log(error);
     }
 };
 
@@ -242,12 +259,20 @@ bot.on('/today_hint', (msg) => {
 
 // по команде показываем пользователю, каким будет его результат
 bot.on('/today', (msg) => {
-    showResults(msg, true);
+    try {
+        showResults(msg, true);
+    } catch (error) {
+        console.log(error);
+    }
 });
 
 // по команде отправляем сообщение в общий чат
 bot.on('/sent', (msg) => {
-    showResults(msg, false);
+    try {
+        showResults(msg, false);
+    } catch (error) {
+        console.log('sent');
+    }
 });
 
 bot.start();

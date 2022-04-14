@@ -4,11 +4,15 @@
  * @returns
  */
 const getUserMessage = (text) => {
-    const res = /[\s](.*)/.exec(text);
-    if (res && res[1]) {
-        return res[1];
+    try {
+        const res = /[\s](.*)/.exec(text);
+        if (res && res[1]) {
+            return res[1];
+        }
+        return null;
+    } catch (error) {
+        console.log(error);
     }
-    return null;
 };
 
 /**
@@ -17,11 +21,15 @@ const getUserMessage = (text) => {
  * @returns
  */
 const getCommand = (text) => {
-    const commandRes = /^(\S+)[\s]/.exec(text);
-    if (commandRes && commandRes[1]) {
-        return commandRes[1].trim().replace(':', '').toLowerCase();
+    try {
+        const commandRes = /^(\S+)[\s]/.exec(text);
+        if (commandRes && commandRes[1]) {
+            return commandRes[1].trim().replace(':', '').toLowerCase();
+        }
+        return null;
+    } catch (error) {
+        console.log(error);
     }
-    return null;
 };
 
 module.exports = {
