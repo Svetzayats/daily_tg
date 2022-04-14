@@ -259,20 +259,12 @@ bot.on('/today_hint', (msg) => {
 
 // по команде показываем пользователю, каким будет его результат
 bot.on('/today', (msg) => {
-    try {
-        showResults(msg, true);
-    } catch (error) {
-        console.log(error);
-    }
+    showResults(msg, true);
 });
 
 // по команде отправляем сообщение в общий чат
 bot.on('/sent', (msg) => {
-    try {
-        showResults(msg, false);
-    } catch (error) {
-        console.log('sent');
-    }
+    showResults(msg, false);
 });
 
 bot.start();
