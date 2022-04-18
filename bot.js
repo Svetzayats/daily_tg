@@ -97,6 +97,7 @@ const getYesterdayMsg = async (msg) => {
         return `<b>${getName(msg)}</b`;
     } catch (error) {
         console.log(error);
+        return '';
     }
 };
 
@@ -119,9 +120,12 @@ const getTodayMsg = async (msg) => {
             });
 
             return comment + message;
+        } else {
+            return '';
         }
     } catch (error) {
         console.log(error);
+        return '';
     }
 };
 
