@@ -11,8 +11,7 @@
   "main": "bot.js",
   "scripts": {
     "start": "node bot.js",
-    "test": "npx jest",
-    "postinstall": "npm run build"
+    "test": "npx jest"
   },
   "engines": {
     "node": "17.7.2"
