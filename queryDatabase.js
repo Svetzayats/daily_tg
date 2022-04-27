@@ -45,7 +45,7 @@ const getTodayRec = async (db, path) => {
         let result = {};
         const todayRecQuery = doc(db, path, key);
         const todayRec = await getDoc(todayRecQuery);
-        if (todayRec.exists()) {
+        if (todayRec?.exists()) {
             result.key = key;
             result.data = todayRec.data();
         }

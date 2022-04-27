@@ -4,9 +4,13 @@ const TeleBot = require('telebot');
 require('dotenv').config();
 
 const { getPreviousRec, getTodayRec } = require('./queryDatabase');
-const { setTodayRec, updateRecByKey } = require('./modifyDatabase');
+const {
+    setTodayRec,
+    updateRecByKey,
+    setErrorRec
+} = require('./modifyDatabase');
 
-const { getCommand, getUserMessage } = require('./helpers');
+const { getCommand, getUserMessage, curry } = require('./helpers');
 
 const bot = new TeleBot(process.env.BOT_ID);
 
@@ -22,10 +26,24 @@ const firebaseConfig = {
 const app = firebase.initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-const commandsForTeam = `
-/yesterday - напомнить о вчерашних планах
-/today - сказать про сегодня
-`;
+const commandsForTeam = [
+    '/today',
+    '/comment',
+    '/yesterday',
+    'today_hint',
+    '/sent',
+    '/start_daily'
+];
+
+// записываем ошибки в базу данных
+const curriedSetErrorRec = curry(setErrorRec);
+const errorHandler = curriedSetErrorRec(db);
+
+// ловим необработанные исключения и пишем в базу
+process.on('unhandledRejection', (reason, promise) => {
+    console.log('unhandledRejection', reason, promise);
+    errorHandler(reason);
+});
 
 // добавляем во "вчерашнюю" запись информацию о сделанных задачах
 const saveYesterdayResults = async (taskIndexies, msg) => {
@@ -43,7 +61,7 @@ const saveYesterdayResults = async (taskIndexies, msg) => {
             );
         }
     } catch (error) {
-        console.log(error);
+        errorHandler(error);
     }
 };
 
@@ -54,7 +72,7 @@ const addTodayTasks = async (tasksMsg, chat, user) => {
         const res = await updateTodayRec(chat, user, { tasks });
         return res;
     } catch (error) {
-        console.log(error);
+        errorHandler(error);
     }
 };
 
@@ -64,7 +82,7 @@ const updateTodayRec = async (chat, user, data) => {
         const res = await setTodayRec(db, `${chat}/${user}/messages`, data);
         return res;
     } catch (error) {
-        console.log(error);
+        errorHandler(error);
     }
 };
 
@@ -94,9 +112,9 @@ const getYesterdayMsg = async (msg) => {
             });
             return `${message}`;
         }
-        return `<b>${getName(msg)}</b`;
+        return `<b>${getName(msg)}</b>`;
     } catch (error) {
-        console.log(error);
+        errorHandler(error);
         return '';
     }
 };
@@ -124,7 +142,7 @@ const getTodayMsg = async (msg) => {
             return '';
         }
     } catch (error) {
-        console.log(error);
+        errorHandler(error);
         return '';
     }
 };
@@ -134,24 +152,31 @@ const showResults = async (msg, isPreview) => {
     try {
         const yesterdayMsg = await getYesterdayMsg(msg);
         const todayMsg = await getTodayMsg(msg);
-        const message = yesterdayMsg + '\n' + todayMsg;
-
-        bot.sendMessage(
-            isPreview ? msg.from.id : process.env.PIVO_DAILY_CHAT_ID,
-            message,
-            {
-                parseMode: 'HTML'
-            }
-        );
+        if (yesterdayMsg || todayMsg) {
+            const message = yesterdayMsg + '\n' + todayMsg;
+            bot.sendMessage(
+                isPreview ? msg.from.id : process.env.PIVO_DAILY_CHAT_ID,
+                message,
+                {
+                    parseMode: 'HTML'
+                }
+            );
+        }
     } catch (error) {
         bot.sendMessage(
             msg.from.id,
             `Ошибка при формировании итогового сообщения: ${error}`
         );
+        errorHandler(error);
     }
 };
 
 bot.on('text', async (msg) => {
+    // не обрабатываем команды для чата
+    if (commandsForTeam.includes(msg.text)) {
+        return;
+    }
+
     try {
         // вычленяем первое слово - считаем его командой
         const command = getCommand(msg.text);
@@ -194,6 +219,7 @@ bot.on('text', async (msg) => {
                 return;
         }
     } catch (error) {
+        errorHandler(error);
         bot.sendMessage(
             msg.from.id,
             '⚠ Произошла ошибка! Перешлите это сообщение разработчику. ' + error
@@ -237,6 +263,7 @@ bot.on('/yesterday', async (msg) => {
             );
         }
     } catch (error) {
+        errorHandler(error);
         bot.sendMessage(
             msg.from.id,
             '⚠ Произошла ошибка! Перешлите это сообщение разработчику. ' + error

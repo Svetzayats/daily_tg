@@ -4,15 +4,11 @@
  * @returns
  */
 const getUserMessage = (text) => {
-    try {
-        const res = /[\s](.*)/.exec(text);
-        if (res && res[1]) {
-            return res[1];
-        }
-        return null;
-    } catch (error) {
-        console.log(error);
+    const res = /[\s](.*)/.exec(text);
+    if (res && res[1]) {
+        return res[1];
     }
+    return null;
 };
 
 /**
@@ -21,18 +17,24 @@ const getUserMessage = (text) => {
  * @returns
  */
 const getCommand = (text) => {
-    try {
-        const commandRes = /^(\S+)[\s]/.exec(text);
-        if (commandRes && commandRes[1]) {
-            return commandRes[1].trim().replace(':', '').toLowerCase();
-        }
-        return null;
-    } catch (error) {
-        console.log(error);
+    const commandRes = /^(\S+)[\s]/.exec(text);
+    if (commandRes && commandRes[1]) {
+        return commandRes[1].trim().replace(':', '').toLowerCase();
     }
+    return null;
+};
+
+// хелпер для каррирования
+const curry = (f) => {
+    return function (a) {
+        return function (b) {
+            return f(a, b);
+        };
+    };
 };
 
 module.exports = {
     getCommand,
-    getUserMessage
+    getUserMessage,
+    curry
 };
